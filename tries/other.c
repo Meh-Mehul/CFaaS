@@ -4,7 +4,7 @@
 #include <stdio.h>
 #include <string.h>
 #include <stdlib.h>
-
+#include <sys/stat.h>
 #define SOCK_PATH "/tmp/scm_try.sock"
 
 int setup_unix_server() {

@@ -28,7 +28,7 @@ typedef struct{
 //            looping construct (recieve, execute and write-back to fd)
 //    2.3 in current (parent), it gets pid, creates the worker at id and 
 //              assigns to workerpool
-Worker* fx_newWorker(Worker* workerPool, int id);
+Worker* fx_newWorker(int id);
 
 
 // core function of the engine
