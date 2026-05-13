@@ -83,7 +83,7 @@ static int worker_recv_fd(int conn) {
 // why not call it systemd?
 // also it is the sole process the 
 // forked worker ever runs (and possible forever)
-static void worker_systemd(char* sock_path, int id){
+static void worker_systemd(char* sock_path, int id, int* pipe_fd){
     int sock_sv = worker_sv_setup(sock_path);
     while(1){
       int conn = accept(sock_sv,NULL ,NULL);
@@ -98,7 +98,9 @@ static void worker_systemd(char* sock_path, int id){
         continue;
       }
       // TODO: Actually do stuff for the request now (finally!)
+      // donot forget to communicate using pipe_fd
       close(job_conn_fd);
+      
       close(conn);
     }
 }
@@ -106,16 +108,34 @@ static void worker_systemd(char* sock_path, int id){
 
 // TODO:
 // newWorker steps:
-//  [] fork to a child process
+//  [-] fork to a child process
 //  [] lower perms, do the parent process's job (getpid, set-up sun path and pipe), return worker
-//  [] in child, run the worker code (unix socket server, recv and run and state change machine)
+//  [-] in child, run the worker code (unix socket server, recv and run and state change machine)
 Worker* fx_newWorker(int id){
     Worker* new_Worker = (Worker*)malloc(sizeof(Worker));
-    char sock_path[100];
+    char sock_path[24];
     snprintf(sock_path,sizeof(sock_path),"/tmp/worker_%d.sock",id);
-    
-    
-    
+    int pipe_fd[2];
+    if(pipe(pipe_fd) == -1){
+      perror("EWORKER_PIPE");
+      exit(1);
+    }
+    pid_t worker_pid = fork();
+    if(worker_pid<0){
+      perror("EWORKER_FORK");
+      exit(1);
+    }    
+    if(worker_pid == 0){
+      worker_systemd(sock_path, id, pipe_fd);
+    }
+    else{
+      new_Worker->pid = worker_pid;
+      new_Worker->com_fd[0] = pipe_fd[0];
+      new_Worker->com_fd[1] = pipe_fd[1];
+      // TODO: Ideally we should communicate and wait for confimation of
+      // UNIX socker server being set up and then do the following, but im lazy
+      snprintf(new_Worker->sun_path,sizeof(new_Worker->sun_path),"%s",sock_path);
+    }
     // after all necessary things have been set up  
     new_Worker->state = 0;
     return new_Worker;

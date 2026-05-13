@@ -16,7 +16,7 @@ typedef struct{
     int state;
     pid_t pid;
     int com_fd[2]; // for the data comm (not the input, this is just in case)
-    char* sun_path[24]; // for the fd intercomm
+    char sun_path[24]; // for the fd intercomm
 }Worker;
 
 // Function for spawining and managing workers
