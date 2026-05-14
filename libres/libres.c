@@ -72,14 +72,16 @@ void get_lib_pth(D_lib* lib){
 bool checkLib(D_lib* lib){
    if(!lib->ID){
     printf("[Error] No ID provided, exiting resolving the library\n");
-    exit(1);
+    //exit(1);
+    return false;
   }
   struct dirent *dp;
   DIR* dfd;
   char* dir = DIR_LIB_PATH;
   if ((dfd = opendir(dir)) == NULL){
     fprintf(stderr, "Can't open %s\n", dir);
-    exit(1);
+    //exit(1);
+    return false;
   } 
   char* lib_path = malloc(sizeof(char)*MAX_LIB_PATH_SZ);
   // TODO: This is very slow for largs systems

@@ -1,4 +1,6 @@
 #include "funcex.h"
+#include "../libres/libres.h"
+#include "../ires/ires.h"
 #include <stdio.h>
 #include<sys/types.h>
 #include<unistd.h>
@@ -99,18 +101,36 @@ static void worker_systemd(char* sock_path, int id, int* pipe_fd){
       }
       // TODO: Actually do stuff for the request now (finally!)
       // donot forget to communicate using pipe_fd
+      int* job_lib_id = resolve_id(&job_conn_fd);
+      int* job_ip_str_sz = resolve_sz(&job_conn_fd);
+      char* job_ip_str = resolve_input_str(&job_conn_fd, *job_ip_str_sz);
+      D_lib* dlib = (D_lib*)malloc(sizeof(D_lib));
+      dlib->ID = *job_lib_id;
+      if(!checkLib(dlib)){
+        perror("EWORKER_LIBSEARCH");
+        continue;
+      }      
+      get_lib_pth(dlib);
+      get_lib_handle(dlib);
+      get_fp(dlib);
+      // call to parent to find that its successfully found and
+      // is about to be scheduled (i mean what else can go wrong now?)
+      char resp_msg[] = "sched";
+      int faas_resp_n = write(pipe_fd[1], resp_msg, sizeof(resp_msg)+1);
+      // and this is the call; kinda underwhelming?
+      int job_result = dlib->fn(job_ip_str);
+      char job_res_msg[10];// not more than 10-digit codes allowed for now
+      snprintf(job_res_msg,sizeof(job_result),"%d",job_result);
+      // TODO: Check the following, i find it sus
+      send(job_conn_fd, &job_res_msg, sizeof(job_res_msg)-1, 0);
       close(job_conn_fd);
-      
       close(conn);
     }
 }
 
 
-// TODO:
-// newWorker steps:
-//  [-] fork to a child process
-//  [] lower perms, do the parent process's job (getpid, set-up sun path and pipe), return worker
-//  [-] in child, run the worker code (unix socket server, recv and run and state change machine)
+// TODO: (i probably wont lower worker perms as for now idc much about security.)
+//  [] lower perms, do the parent process's job. (probably using setuid, although i would need to read : https://people.eecs.berkeley.edu/~daw/papers/setuid-usenix02.pdf)
 Worker* fx_newWorker(int id){
     Worker* new_Worker = (Worker*)malloc(sizeof(Worker));
     char sock_path[24];
