@@ -99,8 +99,6 @@ static void worker_systemd(char* sock_path, int id, int* pipe_fd){
         perror("WORKERSV_JOBFD");
         continue;
       }
-      // TODO: Actually do stuff for the request now (finally!)
-      // donot forget to communicate using pipe_fd
       int* job_lib_id = resolve_id(&job_conn_fd);
       int* job_ip_str_sz = resolve_sz(&job_conn_fd);
       char* job_ip_str = resolve_input_str(&job_conn_fd, *job_ip_str_sz);
@@ -117,12 +115,25 @@ static void worker_systemd(char* sock_path, int id, int* pipe_fd){
       // is about to be scheduled (i mean what else can go wrong now?)
       char resp_msg[] = "sched";
       int faas_resp_n = write(pipe_fd[1], resp_msg, sizeof(resp_msg)+1);
+      if(faas_resp_n<0){
+        perror("WORKER_SCHED_RESP");
+        continue;
+      }
       // and this is the call; kinda underwhelming?
+      // TODO: Add timeout limits so as to limit the function's 
+      // execution to only 1minute at most
       int job_result = dlib->fn(job_ip_str);
       char job_res_msg[10];// not more than 10-digit codes allowed for now
       snprintf(job_res_msg,sizeof(job_result),"%d",job_result);
       // TODO: Check the following, i find it sus
       send(job_conn_fd, &job_res_msg, sizeof(job_res_msg)-1, 0);
+      // since the job is now done, send state-change resp
+      char job_done_msg[] = "done";
+      int faas_done_n = write(pipe_fd[1], job_done_msg, sizeof(job_done_msg)+1);
+      if(faas_done_n<0){
+        perror("WORKER_DONE_RESP");
+        continue;
+      }
       close(job_conn_fd);
       close(conn);
     }
@@ -163,9 +174,21 @@ Worker* fx_newWorker(int id){
 
 
 
+// the scheduler for cfaas main
+// for now, its a simple iterable and lock-based
+// scheduler, but later on i may do some heuristics
+// it iterates through the workers and then schedules the job
+// in the first one it finds to be free, if none are free, then waits
+int fx_sched(Worker* workers, int* fd, char* input){
+  //lock here
+  for(int worker_id = 0; worker_id<NUM_WORKERS; worker_id++){
+    if(workers[worker_id].state == 0){
+      
+    }
+  }
 
-int fx_sched(int* fd, char* input){
-  
+
+  // unlock here
 
 
 }
