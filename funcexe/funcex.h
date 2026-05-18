@@ -1,5 +1,6 @@
 #include<sys/types.h>
 #include<unistd.h>
+#include<pthread.h>
 #include<stdbool.h>
 #define NUM_WORKERS 20
 
@@ -12,6 +13,7 @@
 // com_fd is the pipe for communicating with the 
 // corresponding worker
 typedef struct{
+    int id;
     int state;
     pid_t pid;
     int com_fd[2]; // for the data comm (not the input, this is just in case)
@@ -40,6 +42,6 @@ Worker* fx_newWorker(int id);
 // worker for execution else -1
 // also, the fd is passed as well, becuase result validity
 // is returned directly by worker 
-int fx_sched(Worker* workers,int* fd, char* input);
+int fx_sched(Worker* workers,pthread_mutex_t* w_lock,int* fd, char* input);
     
     

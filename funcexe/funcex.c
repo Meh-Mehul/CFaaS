@@ -1,6 +1,8 @@
 #include "funcex.h"
 #include "../libres/libres.h"
 #include "../ires/ires.h"
+#include <bits/pthreadtypes.h>
+#include <pthread.h>
 #include <stdio.h>
 #include<sys/types.h>
 #include<unistd.h>
@@ -168,8 +170,50 @@ Worker* fx_newWorker(int id){
       snprintf(new_Worker->sun_path,sizeof(new_Worker->sun_path),"%s",sock_path);
     }
     // after all necessary things have been set up  
+    new_Worker->id = id;
     new_Worker->state = 0;
     return new_Worker;
+}
+
+// structure to handle thread invocation with params
+typedef struct{
+  Worker* worker;
+  int* fd;
+  char* input;
+}W_input;
+
+
+// internal func to connect to unix socket of the worker (for fd transfer)
+static int wm_connect_unix(int id){
+  char sock_path[24];
+  snprintf(sock_path,sizeof(sock_path),"/tmp/worker_%d.sock",id);
+  struct sockaddr_un addr = {
+    .sun_path = sock_path, // ERROR MAY OCCUR HERE BUT IDC TBH
+    .sun_family = AF_UNIX
+  };
+  int unix_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+  if(unix_sock == -1){
+    perror("EWM_CONNECT_UN");
+    return -1;
+  }
+  if(connect(unix_sock, (struct sockaddr*)&addr, sizeof(addr)) == -1){
+    close(unix_sock);
+    perror("EWM_CONNECT_UN");
+    return -1;
+  }
+  return unix_sock;
+}
+
+
+// sent off by the scheduler to allocate the given task to the worker
+// also handle state change and waits till that task is done
+// since this is offloaded to a separate thread, its way easier.
+static void wm_worker_alloc(void* arg){
+  W_input* worker_input = (W_input*)arg;
+  Worker* worker = worker_input->worker;
+  int* fd = worker_input->fd;
+  char* input = worker_input->input;
+  
 }
 
 
@@ -179,17 +223,16 @@ Worker* fx_newWorker(int id){
 // scheduler, but later on i may do some heuristics
 // it iterates through the workers and then schedules the job
 // in the first one it finds to be free, if none are free, then waits
-int fx_sched(Worker* workers, int* fd, char* input){
-  //lock here
+int fx_sched(Worker* workers,pthread_mutex_t* w_lock, int* fd, char* input){
+  pthread_mutex_lock(w_lock);
   for(int worker_id = 0; worker_id<NUM_WORKERS; worker_id++){
     if(workers[worker_id].state == 0){
+      workers[worker_id].state = 1;
       
+      break;
     }
   }
-
-
-  // unlock here
-
+  pthread_mutex_unlock(w_lock);
 
 }
 
