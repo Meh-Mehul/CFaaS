@@ -1,0 +1,13 @@
+Design idea behind the Function Executor (Funcexe):
+
+
+[As is in my every recent project] The workermanager schedules a free worker.
+The worker (after being split as a thread) runs a systemd-like process at 
+initialization and sets up a unix socket server to listen for fd transfers.
+
+The main scheduler finds a free worker and schedules another thread (never joined),
+which does the worker of transferring the fd as well handling the manager-side state
+of the worker.
+
+In this way, only a single program handles the workers, their startup and their
+execution. 
