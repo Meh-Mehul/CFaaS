@@ -179,7 +179,8 @@ Worker* fx_newWorker(int id){
 typedef struct{
   Worker* worker;
   int* fd;
-  char* input;
+  pthread_mutex_t* w_lock;
+  //char* input; // idts its needed as resolver alrdy does this
 }W_input;
 
 
@@ -204,16 +205,54 @@ static int wm_connect_unix(int id){
   return unix_sock;
 }
 
+// this one sends the fd over to the worker's
+// systemd process, and then leaves the task to it
+int wm_send_fd(int unix_sock, int fd){
+  struct iovec iov;
+  char dummy[2] = ":)";
+  iov.iov_base = dummy;
+  iov.iov_len = 2;
+
+  union {
+      char buf[CMSG_SPACE(sizeof(int))];
+      struct cmsghdr align;
+  } u;
+
+  memset(&u, 0, sizeof(u));
+
+  struct msghdr msg = {0};
+  msg.msg_iov = &iov;
+  msg.msg_iovlen = 1;
+  msg.msg_control = u.buf;
+  msg.msg_controllen = sizeof(u.buf);
+
+  struct cmsghdr* cmsg = CMSG_FIRSTHDR(&msg);
+  cmsg->cmsg_level = SOL_SOCKET;
+  cmsg->cmsg_type = SCM_RIGHTS;
+  cmsg->cmsg_len = CMSG_LEN(sizeof(int));
+
+  memcpy(CMSG_DATA(cmsg), &fd, sizeof(int));
+
+  return sendmsg(unix_sock, &msg, 0);
+}
 
 // sent off by the scheduler to allocate the given task to the worker
 // also handle state change and waits till that task is done
 // since this is offloaded to a separate thread, its way easier.
-static void wm_worker_alloc(void* arg){
+static void* wm_worker_alloc(void* arg){
   W_input* worker_input = (W_input*)arg;
   Worker* worker = worker_input->worker;
   int* fd = worker_input->fd;
-  char* input = worker_input->input;
-  
+  pthread_mutex_t* w_lock = worker_input->w_lock;
+  int worker_unix_sock = wm_connect_unix(worker->id);
+  int err =wm_send_fd(worker_unix_sock, *fd);
+  if(err){
+    perror("[Major Error] WM Could not send fd to worker!");
+  }
+  // free the worker after done
+  pthread_mutex_lock(w_lock);
+  worker->state = 0;
+  pthread_mutex_unlock(w_lock);
 }
 
 
@@ -223,17 +262,37 @@ static void wm_worker_alloc(void* arg){
 // scheduler, but later on i may do some heuristics
 // it iterates through the workers and then schedules the job
 // in the first one it finds to be free, if none are free, then waits
-int fx_sched(Worker* workers,pthread_mutex_t* w_lock, int* fd, char* input){
-  pthread_mutex_lock(w_lock);
-  for(int worker_id = 0; worker_id<NUM_WORKERS; worker_id++){
-    if(workers[worker_id].state == 0){
-      workers[worker_id].state = 1;
-      
-      break;
+// returns 1 if scheduled, -1 if not scheduled
+int fx_sched_once(Worker* workers,pthread_mutex_t* w_lock, int* fd, char* input){
+  bool alloc = false;
+  int tries_to_alloc = 0;
+  while(!alloc && tries_to_alloc<SCHED_MAX_TRIES){
+    pthread_mutex_lock(w_lock);
+    for(int worker_id = 0; worker_id<NUM_WORKERS; worker_id++){
+      if(workers[worker_id].state == 0){
+        workers[worker_id].state = 1;
+        pthread_t worker_sched_thread;
+        W_input* worker_ip = (W_input*)malloc(sizeof(W_input));
+        worker_ip->worker = &workers[worker_id];
+        worker_ip->fd = fd;
+        worker_ip->w_lock  = w_lock;
+        int err = pthread_create(&worker_sched_thread, NULL, wm_worker_alloc, (void*)worker_ip);
+        if(err){
+          perror("[Major Issue] could not create a thread to schedule to worker");          
+        }
+        alloc = true;
+        break;
+      }
     }
+    pthread_mutex_unlock(w_lock);
+    tries_to_alloc++;
   }
-  pthread_mutex_unlock(w_lock);
-
+  if(alloc){ 
+    return 1;
+  }
+  else{
+    return -1;
+  }
 }
 
 

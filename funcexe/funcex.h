@@ -3,7 +3,7 @@
 #include<pthread.h>
 #include<stdbool.h>
 #define NUM_WORKERS 20
-
+#define SCHED_MAX_TRIES 1000
 
 // Worker struct for cfaas system
 // state:
