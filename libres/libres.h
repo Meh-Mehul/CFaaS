@@ -31,5 +31,6 @@ void get_lib_handle(D_lib* lib);
 void get_fp(D_lib* lib);
 
 
-
+// just because its needed in some other libs
+int get_id_from_fp(char* fp);
 

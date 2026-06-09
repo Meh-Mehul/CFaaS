@@ -19,6 +19,9 @@ int get_id_from_fp(char* fp){
   if(fp[i] == '.' && fp[i+1]=='s'&&fp[i+2]=='o'&&fp[i+3] == '\0'){
     return id;
   }
+  if(fp[i] == '.' && fp[i+1]=='c'){
+    return id;
+  }
   printf("[Error] Error in parsing Library Name %s\n", fp);
   return -1;
 }

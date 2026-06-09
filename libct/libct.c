@@ -4,13 +4,18 @@
 #include<stdlib.h>
 #include<time.h>
 #include<unistd.h>
-
+#include<assert.h>
+#include<dlfcn.h>
 
 int lc_get_randid(){
   srand(time(NULL));
   return (rand()%(MAX_RAND-MIN_RAND+1))+MIN_RAND;
 }
 
+// delegate library for deletion (not-strict gurentee)
+void del_lib(char* filepath){
+  remove(filepath);
+}
 
 // (to be checked) A function to recieve and write
 // to a temporary file in the format "templib/lib_<rand_id>.c"
@@ -19,7 +24,7 @@ int lc_get_randid(){
 char* recv_file_n_save(int socket){
     int random_uid = lc_get_randid();
     char* dest_fname = malloc(sizeof(char)*FILENAME_MX_SZ);
-    snprintf(dest_fname, sizeof(dest_fname), "templib/lib_%d.c", random_uid);
+    snprintf(dest_fname, sizeof(dest_fname), "./templib/%d.c", random_uid);
     char buffer[BUFFER_SIZE];
     long file_size = 0;
     ssize_t bytes_recv = 0;
@@ -56,15 +61,50 @@ char* recv_file_n_save(int socket){
     return dest_fname;
 }
 
+// IMPORTANT: This is not for temporary file,
+// instead its a check after compilation 
 // This function checks whether the recieved
-// temporary file is conformant with the requirements
+// compiled final file is conformant with the requirements
 //  for being a runnable library or not?
+// if not, its auto-deleted
 // Rules in: /cfaas/libct/readme.txt
+// unfortunatelt C does not allow for type check ;(
 bool validate_file(char* filepath){
-  
+  int id = get_id_from_fp(filepath);
+  void* handle = dlopen(filepath, RTLD_LAZY);
+  if(!handle){
+    perror("E_LOADING_LIB");
+    return false;
+  }    
+  dlerror();
+  void* symbol = dlsym(handle, "fn");
+  // TODO: Implement an AST based checker for type
+  // during the pre-compile phase of the library
+  // (yea, im not gonna do this)
+  const char* error = dlerror();
+  if(error != NULL){
+    perror("E_NOSYMBOL: Symbol not present");
+    del_lib(filepath);// call for deletion
+    return false;
+  }
+  return true;
 }
 
-
-int compile_to_lib(char* filepath){
-  
+// this function literally compiles
+// the temp file to a shared lib
+// and returns the path
+// on failure, it returns NULL
+char* compile_to_lib(char* filepath){
+  char command[1024];
+  char* dest_path = malloc(512*sizeof(char));
+  int id = get_id_from_fp(filepath);
+  snprintf(dest_path, sizeof(dest_path), "./libs/%d.so", id);
+  snprintf(command, sizeof(command), "gcc -fPIC -shared -o %s %s", dest_path, filepath);
+  int status = system(command);
+  if(status != 0){
+    perror("ECOMPILE_LIB: Could not compile library");
+    return NULL;
+  }
+  remove(filepath);
+  return dest_path; 
 }
