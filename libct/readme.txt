@@ -4,6 +4,8 @@ Main goal of this sub-module would be to be responsible
 for creation of the libraries (the functions) for being
 ran by the Service.
 
+
+Rules for function being conformant:
 As discussed in the libres : the function must be of type : int (*fn)(char*)
 and it must be named -> "fn"
 
