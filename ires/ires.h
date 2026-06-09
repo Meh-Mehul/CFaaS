@@ -1,6 +1,8 @@
 // ires's major work is to get input to char* 
 // to make it passable to the <lib_func>
-
+#ifndef IRES_IMPL
+  #define IRES_IMPL
+#endif
 #define MAX_INPUT_SIZE 2048
 // for now, i have assumed ID and inputsz are integers
 #define TAGS_SZ_B 4       

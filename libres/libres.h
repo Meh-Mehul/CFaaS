@@ -1,4 +1,7 @@
 // for the library resolving part
+#ifndef LIBREAS_IMPL
+  #define LIBRES_IMPL
+#endif
 #include<stdbool.h>
 typedef int (*_fn_ptr)(char*);// core type for the system btw
 #define DIR_LIB_PATH "./libs"

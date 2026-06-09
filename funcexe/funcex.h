@@ -4,7 +4,9 @@
 #include<stdbool.h>
 #define NUM_WORKERS 20
 #define SCHED_MAX_TRIES 1000
-
+#ifndef FUNCEXE_IMPL
+    #define FUNCEXE_IMPL
+#endif
 // Worker struct for cfaas system
 // state:
 //  0 - free worker
