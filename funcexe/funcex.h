@@ -44,6 +44,6 @@ Worker* fx_newWorker(int id);
 // worker for execution else -1
 // also, the fd is passed as well, becuase result validity
 // is returned directly by worker 
-int fx_sched(Worker* workers,pthread_mutex_t* w_lock,int* fd, char* input);
+int fx_sched(Worker* workers,pthread_mutex_t* w_lock,int* fd);
     
     

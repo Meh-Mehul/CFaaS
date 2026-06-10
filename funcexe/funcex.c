@@ -12,7 +12,7 @@
 #include<sys/socket.h>
 #include<sys/stat.h>
 
-
+#define MAX_SCHED_RETRIES 10
 // this function will be run inside the worker
 // so that it can set-up its fd comm channel with teh 
 // main process.  
@@ -124,6 +124,7 @@ static void worker_systemd(char* sock_path, int id, int* pipe_fd){
       // and this is the call; kinda underwhelming?
       // TODO: Add timeout limits so as to limit the function's 
       // execution to only 1minute at most
+      // or add this config to some store or smth (but again, im lazy)
       int job_result = dlib->fn(job_ip_str);
       char job_res_msg[10];// not more than 10-digit codes allowed for now
       snprintf(job_res_msg,sizeof(job_result),"%d",job_result);
@@ -160,6 +161,7 @@ Worker* fx_newWorker(int id){
     }    
     if(worker_pid == 0){
       worker_systemd(sock_path, id, pipe_fd);
+      exit(1); // never gonna reach here, but ig better for caution
     }
     else{
       new_Worker->pid = worker_pid;
@@ -249,7 +251,9 @@ static void* wm_worker_alloc(void* arg){
   if(err){
     perror("[Major Error] WM Could not send fd to worker!");
   }
-  // free the worker after done
+  // wait for "done" message from worker pipe
+  char buf[4];
+  read(worker->com_fd[0], buf, sizeof(buf));
   pthread_mutex_lock(w_lock);
   worker->state = 0;
   pthread_mutex_unlock(w_lock);
@@ -263,7 +267,7 @@ static void* wm_worker_alloc(void* arg){
 // it iterates through the workers and then schedules the job
 // in the first one it finds to be free, if none are free, then waits
 // returns 1 if scheduled, -1 if not scheduled
-int fx_sched_once(Worker* workers,pthread_mutex_t* w_lock, int* fd, char* input){
+int fx_sched_once(Worker* workers,pthread_mutex_t* w_lock, int* fd){
   bool alloc = false;
   int tries_to_alloc = 0;
   while(!alloc && tries_to_alloc<SCHED_MAX_TRIES){
@@ -295,5 +299,15 @@ int fx_sched_once(Worker* workers,pthread_mutex_t* w_lock, int* fd, char* input)
   }
 }
 
-
-
+// since, my scheduler is dumb, the one who wrote it
+// deserves to have this function atleast
+int fx_sched(Worker* workers, pthread_mutex_t* w_lock, int* fd){
+  int sched_tries = 0;
+  int res_fg = 0;
+  while(sched_tries < MAX_SCHED_RETRIES){
+    res_fg = fx_sched_once(workers, w_lock, fd);
+    if(res_fg == 1) break;
+    else sched_tries++;
+  }
+  return res_fg;
+}
