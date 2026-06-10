@@ -4,7 +4,6 @@ BUILD_DIR = build
 
 SOURCES = main.c \
 	ires/ires.c \
-	ires/conv_try.c \
 	funcexe/funcex.c \
 	libct/libct.c \
 	libres/libres.c

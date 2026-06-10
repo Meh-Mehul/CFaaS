@@ -14,7 +14,7 @@ void* read_x_bytes(int* fd, unsigned int x){
   }
   int bytesRead = 0;
   int res;
-  while(bytesRead<x){
+  while(bytesRead<(int)x){
     res = bytesRead;
     res = read(*fd, buf+bytesRead, x-bytesRead);
     if(res<1){

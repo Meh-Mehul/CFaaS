@@ -103,7 +103,7 @@ void start_main_server(){
   addr.sin_port = htons(FAAS_PORT);
   int opt = 1;
   setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-  bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));
+  (void)bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));
   listen(server_fd, 10);
   while(1){
     int client_fd = accept(server_fd, NULL, NULL);
