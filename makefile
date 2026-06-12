@@ -14,7 +14,23 @@ TARGET = $(BUILD_DIR)/main
 all: $(BUILD_DIR) $(TARGET)
 
 $(BUILD_DIR):
-	mkdir -p $(BUILD_DIR)/ires $(BUILD_DIR)/funcexe $(BUILD_DIR)/libct $(BUILD_DIR)/libres
+	mkdir -p $(BUILD_DIR)/ires $(BUILD_DIR)/funcexe $(BUILD_DIR)/libct $(BUILD_DIR)/libres $(BUILD_DIR)/clients $(BUILD_DIR)/templib $(BUILD_DIR)/libs
+
+# client build outputs
+CLIENT_BUILD_DIR = $(BUILD_DIR)/clients
+
+CLIENTS = $(CLIENT_BUILD_DIR)/libct $(CLIENT_BUILD_DIR)/faas
+
+client: $(CLIENT_BUILD_DIR) $(CLIENTS)
+
+$(CLIENT_BUILD_DIR):
+	mkdir -p $(CLIENT_BUILD_DIR)
+
+$(CLIENT_BUILD_DIR)/libct: clients/libct_client.c
+	$(CC) $(CFLAGS) -o $@ $<
+
+$(CLIENT_BUILD_DIR)/faas: clients/faas_client.c
+	$(CC) $(CFLAGS) -o $@ $<
 
 $(TARGET): $(OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^

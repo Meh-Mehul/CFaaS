@@ -17,9 +17,10 @@
 #ifndef LIBRES_IMPL
   #include"libres/libres.h" // just because why not?
 #endif
+#ifndef COMMON_IMPL
+  #include"common.h"
+#endif
 
-#define LIBCT_PORT 6969
-#define FAAS_PORT 8000
 
 Worker* g_workers = NULL;
 pthread_mutex_t g_w_lock = PTHREAD_MUTEX_INITIALIZER;
@@ -35,6 +36,14 @@ void* handle_libct_client(void* args){
   int client_fd = cargs->fd;
   free(cargs);
   char* temp_file_path = recv_file_n_save(client_fd);
+  DEBUG("Received file");
+  if(temp_file_path == NULL){
+    char msg[100];
+    snprintf(msg, sizeof(msg), "Sorry, we could not recieve you function!.");
+    send(client_fd, msg, sizeof(msg)+1, 0);
+    close(client_fd);
+    return NULL;
+  }
   char* lib_path = compile_to_lib(temp_file_path);
   if(validate_file(lib_path)){
     send(client_fd, lib_path, strlen(lib_path) + 1, 0);
@@ -62,6 +71,7 @@ void* start_lib_creator_ss(void* args){
   listen(server_fd, 5);
   while(1){
     int client_fd = accept(server_fd, NULL, NULL);
+    DEBUG("Connection");
     ClientArgs* args = (ClientArgs*)malloc(sizeof(ClientArgs));
     args->fd = client_fd;
     pthread_t thread;
