@@ -18,6 +18,19 @@ void del_lib(char* filepath){
   remove(filepath);
 }
 
+static int recv_all(int socket, void* data, size_t size){
+  char* cursor = (char*)data;
+  size_t total = 0;
+  while(total < size){
+    ssize_t bytes_recv = recv(socket, cursor + total, size - total, 0);
+    if(bytes_recv <= 0){
+      return -1;
+    }
+    total += bytes_recv;
+  }
+  return 0;
+}
+
 // (to be checked) A function to recieve and write
 // to a temporary file in the format "templib/lib_<rand_id>.c"
 // NOTE: The client must send a long integer for file size first, 
@@ -32,7 +45,7 @@ char* recv_file_n_save(int socket){
     ssize_t bytes_recv = 0;
     // first the client sends the filesize
     // (one long integer)
-    if(recv(socket, &file_size, sizeof(file_size), 0)<=0){
+    if(recv_all(socket, &file_size, sizeof(file_size)) < 0){
       perror("ERECV_LIB: Failed to recv library.");
       return NULL;
     }
@@ -73,6 +86,9 @@ char* recv_file_n_save(int socket){
 // Rules in: /cfaas/libct/readme.txt
 // unfortunatelt C does not allow for type check ;(
 bool validate_file(char* filepath){
+  if(filepath == NULL){
+    return false;
+  }
   int id = get_id_from_fp(filepath);
   void* handle = dlopen(filepath, RTLD_LAZY);
   if(!handle){

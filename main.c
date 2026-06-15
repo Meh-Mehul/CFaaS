@@ -45,10 +45,11 @@ void* handle_libct_client(void* args){
     return NULL;
   }
   char* lib_path = compile_to_lib(temp_file_path);
-  if(validate_file(lib_path)){
+  if(lib_path != NULL && validate_file(lib_path)){
     send(client_fd, lib_path, strlen(lib_path) + 1, 0);
   }
   else{
+    remove(temp_file_path);
     char msg[100];
     snprintf(msg, sizeof(msg), "Sorry, we could not upload you function!.");
     send(client_fd, msg, sizeof(msg)+1, 0);
@@ -61,16 +62,36 @@ void* handle_libct_client(void* args){
 // the library creator
 void* start_lib_creator_ss(void* args){
   int server_fd = socket(AF_INET, SOCK_STREAM, 0);
+  if(server_fd < 0){
+    perror("LIBCT_SOCKET");
+    return NULL;
+  }
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = INADDR_ANY;
   addr.sin_port = htons(LIBCT_PORT);
   int opt = 1;
-  setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-  bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));
-  listen(server_fd, 5);
+  if(setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt)) < 0){
+    perror("LIBCT_SETSOCKOPT");
+    close(server_fd);
+    return NULL;
+  }
+  if(bind(server_fd, (struct sockaddr*)&addr, sizeof(addr)) < 0){
+    perror("LIBCT_BIND");
+    close(server_fd);
+    return NULL;
+  }
+  if(listen(server_fd, 5) < 0){
+    perror("LIBCT_LISTEN");
+    close(server_fd);
+    return NULL;
+  }
   while(1){
     int client_fd = accept(server_fd, NULL, NULL);
+    if(client_fd < 0){
+      perror("LIBCT_ACCEPT");
+      continue;
+    }
     DEBUG("Connection");
     ClientArgs* args = (ClientArgs*)malloc(sizeof(ClientArgs));
     args->fd = client_fd;
@@ -100,15 +121,15 @@ void* handle_main_client(void* args){
   int client_fd = cargs->fd;
   free(cargs);
   
-  printf("[DEBUG] handle_main_client: scheduling request on fd %d\n", client_fd);
+  DEBUG("[DEBUG] handle_main_client: scheduling request on fd %d\n", client_fd);
   int result = fx_sched(g_workers, &g_w_lock, &client_fd);
-  printf("[DEBUG] handle_main_client: scheduling returned %d\n", result);
+  DEBUG("[DEBUG] handle_main_client: scheduling returned %d\n", result);
   return NULL;
 }
 
 // main server (i.e. the funcexe scheduler)
 void start_main_server(){
-  printf("[DEBUG] Starting main server on port 8000...\n");
+  DEBUG("[DEBUG] Starting main server on port 8000...\n");
   int server_fd = socket(AF_INET, SOCK_STREAM, 0);
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
@@ -118,10 +139,10 @@ void start_main_server(){
   setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
   bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));
   listen(server_fd, 10);
-  printf("[DEBUG] Main server listening...\n");
+  DEBUG("[DEBUG] Main server listening...\n");
   while(1){
     int client_fd = accept(server_fd, NULL, NULL);
-    printf("[DEBUG] Accepted client connection\n");
+    DEBUG("[DEBUG] Accepted client connection\n");
     MainClientArgs* cargs = (MainClientArgs*)malloc(sizeof(MainClientArgs));
     cargs->fd = client_fd;
     pthread_t thread;
@@ -132,15 +153,15 @@ void start_main_server(){
 
 // CFaaS main
 int main(){
-  printf("[DEBUG] CFaaS main starting...\n");
+  DEBUG("[DEBUG] CFaaS main starting...\n");
   fflush(stdout);
   pthread_t libct_thread, worker_thread;
   pthread_create(&libct_thread, NULL, start_lib_creator_ss, NULL);
   pthread_create(&worker_thread, NULL, create_workers, NULL);
-  printf("[DEBUG] Threads created, sleeping for worker setup...\n");
+  DEBUG("[DEBUG] Threads created, sleeping for worker setup...\n");
   fflush(stdout);
   sleep(5);
-  printf("[DEBUG] Sleep done, starting main server\n");
+  DEBUG("[DEBUG] Sleep done, starting main server\n");
   fflush(stdout);
   start_main_server();
   pthread_join(libct_thread, NULL);

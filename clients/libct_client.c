@@ -4,10 +4,24 @@
 #include <string.h>
 #include <stdlib.h>
 #include <sys/stat.h>
+#include <sys/socket.h>
 #include <fcntl.h>
 
 #define PORT 6969
 #define BUFFER_SIZE 4096
+
+static int send_all(int sock, const void* data, size_t size){
+    const char* cursor = (const char*)data;
+    size_t total = 0;
+    while(total < size){
+        ssize_t n = send(sock, cursor + total, size - total, 0);
+        if(n <= 0){
+            return -1;
+        }
+        total += n;
+    }
+    return 0;
+}
 
 int main(int argc, char** argv){
     if(argc < 2){
@@ -35,7 +49,7 @@ int main(int argc, char** argv){
     }
 
     // send file size (server expects a long)
-    if(send(sock, &file_size, sizeof(file_size), 0) != sizeof(file_size)){
+    if(send_all(sock, &file_size, sizeof(file_size)) < 0){
         perror("send filesize"); close(sock); return 1;
     }
 
@@ -45,12 +59,8 @@ int main(int argc, char** argv){
     char buf[BUFFER_SIZE];
     ssize_t r;
     while((r = read(fd, buf, sizeof(buf))) > 0){
-        ssize_t s = 0;
-        char* p = buf;
-        while(s < r){
-            ssize_t n = send(sock, p + s, r - s, 0);
-            if(n <= 0){ perror("send file"); close(fd); close(sock); return 1; }
-            s += n;
+        if(send_all(sock, buf, r) < 0){
+            perror("send file"); close(fd); close(sock); return 1;
         }
     }
     close(fd);

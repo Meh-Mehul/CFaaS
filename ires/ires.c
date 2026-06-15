@@ -2,14 +2,16 @@
 #include<stdio.h>
 #include<stdlib.h>
 #include<unistd.h>
-
+#ifndef COMMON_IMPL
+  #include"../common.h"
+#endif
 
 
 
 void* read_x_bytes(int* fd, unsigned int x){
   void* buf = malloc(MAX_INPUT_SIZE);
   if(x>MAX_INPUT_SIZE){
-    printf("[Warning] the input length is too high, issues might occur!\n");
+    DEBUG("[Warning] the input length is too high, issues might occur!\n");
     void* t = realloc(buf, x);
   }
   int bytesRead = 0;
@@ -18,7 +20,7 @@ void* read_x_bytes(int* fd, unsigned int x){
     res = bytesRead;
     res = read(*fd, buf+bytesRead, x-bytesRead);
     if(res<1){
-      printf("Could not read enough bytes.\n");
+      DEBUG("Could not read enough bytes.\n");
       exit(1);
     }
     bytesRead += res;
