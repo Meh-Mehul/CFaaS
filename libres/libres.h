@@ -3,7 +3,7 @@
   #define LIBRES_IMPL
 #endif
 #include<stdbool.h>
-typedef int (*_fn_ptr)(char*);// core type for the system btw
+typedef int (*_fn_ptr)(int*, char*);// core type for the system btw
 #define DIR_LIB_PATH "./libs"
 #define MAX_LIB_PATH_SZ 1024
 // yes, its a hardcoded const, deal with it

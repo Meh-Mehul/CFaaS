@@ -19,7 +19,7 @@ $(BUILD_DIR):
 # client build outputs
 CLIENT_BUILD_DIR = $(BUILD_DIR)/clients
 
-CLIENTS = $(CLIENT_BUILD_DIR)/libct $(CLIENT_BUILD_DIR)/faas
+CLIENTS = $(CLIENT_BUILD_DIR)/libct $(CLIENT_BUILD_DIR)/faas_sample
 
 client: $(CLIENT_BUILD_DIR) $(CLIENTS)
 
@@ -29,7 +29,7 @@ $(CLIENT_BUILD_DIR):
 $(CLIENT_BUILD_DIR)/libct: clients/libct_client.c
 	$(CC) $(CFLAGS) -o $@ $<
 
-$(CLIENT_BUILD_DIR)/faas: clients/faas_client.c
+$(CLIENT_BUILD_DIR)/faas_sample: clients/faas_client_sample.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 $(TARGET): $(OBJECTS)

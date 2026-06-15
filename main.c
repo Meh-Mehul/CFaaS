@@ -99,24 +99,29 @@ void* handle_main_client(void* args){
   MainClientArgs* cargs = (MainClientArgs*)args;
   int client_fd = cargs->fd;
   free(cargs);
-  fx_sched(g_workers, &g_w_lock, &client_fd);
-  close(client_fd);
+  
+  printf("[DEBUG] handle_main_client: scheduling request on fd %d\n", client_fd);
+  int result = fx_sched(g_workers, &g_w_lock, &client_fd);
+  printf("[DEBUG] handle_main_client: scheduling returned %d\n", result);
   return NULL;
 }
 
 // main server (i.e. the funcexe scheduler)
 void start_main_server(){
+  printf("[DEBUG] Starting main server on port 8000...\n");
   int server_fd = socket(AF_INET, SOCK_STREAM, 0);
   struct sockaddr_in addr;
   addr.sin_family = AF_INET;
   addr.sin_addr.s_addr = INADDR_ANY;
-  addr.sin_port = htons(FAAS_PORT);
+  addr.sin_port = htons(8000);
   int opt = 1;
   setsockopt(server_fd, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-  (void)bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));
+  bind(server_fd, (struct sockaddr*)&addr, sizeof(addr));
   listen(server_fd, 10);
+  printf("[DEBUG] Main server listening...\n");
   while(1){
     int client_fd = accept(server_fd, NULL, NULL);
+    printf("[DEBUG] Accepted client connection\n");
     MainClientArgs* cargs = (MainClientArgs*)malloc(sizeof(MainClientArgs));
     cargs->fd = client_fd;
     pthread_t thread;
@@ -127,10 +132,16 @@ void start_main_server(){
 
 // CFaaS main
 int main(){
+  printf("[DEBUG] CFaaS main starting...\n");
+  fflush(stdout);
   pthread_t libct_thread, worker_thread;
   pthread_create(&libct_thread, NULL, start_lib_creator_ss, NULL);
   pthread_create(&worker_thread, NULL, create_workers, NULL);
-  sleep(5); // sleep just to wait for worker setup
+  printf("[DEBUG] Threads created, sleeping for worker setup...\n");
+  fflush(stdout);
+  sleep(5);
+  printf("[DEBUG] Sleep done, starting main server\n");
+  fflush(stdout);
   start_main_server();
   pthread_join(libct_thread, NULL);
   pthread_join(worker_thread, NULL);

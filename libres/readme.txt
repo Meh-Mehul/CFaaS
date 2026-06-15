@@ -6,4 +6,4 @@ Im planning to keep its implementation relatively simple
 -> return fp 
 
 
-Note: The core executor function will be called fn and is of the type: int (*fn) (char*)
+Note: The core executor function will be called fn and is of the type: int (*fn) (int*, char*)

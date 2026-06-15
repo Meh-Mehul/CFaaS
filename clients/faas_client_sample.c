@@ -13,7 +13,7 @@ int main(int argc, char** argv){
     }
     int lib_id = atoi(argv[1]);
     char* input = argv[2];
-    int input_sz = (int)strlen(input) + 1; // include null terminator
+    int input_sz = (int)strlen(input) + 1;
 
     int sock = socket(AF_INET, SOCK_STREAM, 0);
     if(sock == -1){ perror("socket"); return 1; }
@@ -27,17 +27,14 @@ int main(int argc, char** argv){
         perror("connect"); close(sock); return 1;
     }
 
-    // send lib id (int)
     if(send(sock, &lib_id, sizeof(lib_id), 0) != sizeof(lib_id)){
         perror("send id"); close(sock); return 1;
     }
 
-    // send input size (int)
     if(send(sock, &input_sz, sizeof(input_sz), 0) != sizeof(input_sz)){
         perror("send sz"); close(sock); return 1;
     }
 
-    // send input string (including null)
     int sent = 0;
     while(sent < input_sz){
         ssize_t n = send(sock, input + sent, input_sz - sent, 0);
@@ -45,7 +42,6 @@ int main(int argc, char** argv){
         sent += n;
     }
 
-    // receive response
     char resp[1024];
     ssize_t n = recv(sock, resp, sizeof(resp)-1, 0);
     if(n > 0){ resp[n] = '\0'; printf("Result: %s\n", resp); }

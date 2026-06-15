@@ -6,7 +6,7 @@ ran by the Service.
 
 
 Rules for function being conformant:
-As discussed in the libres : the function must be of type : int (*fn)(char*)
+As discussed in the libres : the function must be of type : int (*fn)(int*, char*)
 and it must be named -> "fn"
 
 So these check must be done ahead of time.

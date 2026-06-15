@@ -11,15 +11,21 @@
 int get_id_from_fp(char* fp){
   int id = 0;
   int i = 0;
-  if(!fp || !isdigit(fp[0])) return -1;
-  while(isdigit(fp[i])){
-    id = id*10 + (fp[i]-'0');
+  char* filename = fp;
+  for(int j = 0; fp[j] != '\0'; j++){
+    if(fp[j] == '/'){
+      filename = &fp[j+1];
+    }
+  }
+  if(!filename || !isdigit(filename[0])) return -1;
+  while(isdigit(filename[i])){
+    id = id*10 + (filename[i]-'0');
     i++;
   }
-  if(fp[i] == '.' && fp[i+1]=='s'&&fp[i+2]=='o'&&fp[i+3] == '\0'){
+  if(filename[i] == '.' && filename[i+1]=='s'&&filename[i+2]=='o'&&filename[i+3] == '\0'){
     return id;
   }
-  if(fp[i] == '.' && fp[i+1]=='c'){
+  if(filename[i] == '.' && filename[i+1]=='c'){
     return id;
   }
   printf("[Error] Error in parsing Library Name %s\n", fp);

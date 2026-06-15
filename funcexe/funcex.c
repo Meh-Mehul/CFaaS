@@ -24,11 +24,12 @@ static int worker_sv_setup(char* sock_path){
   } 
   struct sockaddr_un addr = {0};
   addr.sun_family = AF_UNIX;
-  strcpy(addr.sun_path, sock_path);
+  strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
   unlink(sock_path);
 
   if(bind(sock, (struct sockaddr*)&addr, sizeof(addr)) == -1){
     perror("ESVSETUPWORKER_BIND");
+    printf("[DEBUG] Failed to bind to: %s\n", sock_path);
     exit(1);
   }  
   if(listen(sock, 2) == -1){
@@ -36,6 +37,7 @@ static int worker_sv_setup(char* sock_path){
     exit(1);
   }
   chmod(sock_path, 0777);
+  printf("[DEBUG] Worker socket created at: %s\n", sock_path);
   return sock;
 }
 
@@ -125,7 +127,7 @@ static void worker_systemd(char* sock_path, int id, int* pipe_fd){
       // TODO: Add timeout limits so as to limit the function's 
       // execution to only 1minute at most
       // or add this config to some store or smth (but again, im lazy)
-      int job_result = dlib->fn(job_ip_str);
+      int job_result = dlib->fn(&job_conn_fd, job_ip_str);
       char job_res_msg[10];// not more than 10-digit codes allowed for now
       snprintf(job_res_msg,sizeof(job_result),"%d",job_result);
       // TODO: Check the following, i find it sus
@@ -146,6 +148,7 @@ static void worker_systemd(char* sock_path, int id, int* pipe_fd){
 // TODO: (i probably wont lower worker perms as for now idc much about security.)
 //  [] lower perms, do the parent process's job. (probably using setuid, although i would need to read : https://people.eecs.berkeley.edu/~daw/papers/setuid-usenix02.pdf)
 Worker* fx_newWorker(int id){
+    printf("[DEBUG] Creating worker %d...\n", id);
     Worker* new_Worker = (Worker*)malloc(sizeof(Worker));
     char sock_path[24];
     snprintf(sock_path,sizeof(sock_path),"/tmp/worker_%d.sock",id);
@@ -160,20 +163,20 @@ Worker* fx_newWorker(int id){
       exit(1);
     }    
     if(worker_pid == 0){
+      printf("[DEBUG] Worker %d child process starting...\n", id);
       worker_systemd(sock_path, id, pipe_fd);
-      exit(1); // never gonna reach here, but ig better for caution
+      exit(1);
     }
     else{
+      printf("[DEBUG] Worker %d parent: forked with PID %d\n", id, worker_pid);
       new_Worker->pid = worker_pid;
       new_Worker->com_fd[0] = pipe_fd[0];
       new_Worker->com_fd[1] = pipe_fd[1];
-      // TODO: Ideally we should communicate and wait for confimation of
-      // UNIX socker server being set up and then do the following, but im lazy
       snprintf(new_Worker->sun_path,sizeof(new_Worker->sun_path),"%s",sock_path);
     }
-    // after all necessary things have been set up  
     new_Worker->id = id;
     new_Worker->state = 0;
+    printf("[DEBUG] Worker %d created successfully\n", id);
     return new_Worker;
 }
 
@@ -190,21 +193,29 @@ typedef struct{
 static int wm_connect_unix(int id){
   char sock_path[24];
   snprintf(sock_path,sizeof(sock_path),"/tmp/worker_%d.sock",id);
-  struct sockaddr_un addr = {
-    .sun_path = sock_path, // ERROR MAY OCCUR HERE BUT IDC TBH
-    .sun_family = AF_UNIX
-  };
-  int unix_sock = socket(AF_UNIX, SOCK_STREAM, 0);
-  if(unix_sock == -1){
-    perror("EWM_CONNECT_UN");
-    return -1;
-  }
-  if(connect(unix_sock, (struct sockaddr*)&addr, sizeof(addr)) == -1){
+  struct sockaddr_un addr = {0};
+  addr.sun_family = AF_UNIX;
+  strncpy(addr.sun_path, sock_path, sizeof(addr.sun_path) - 1);
+  
+  int retries = 50;
+  while(retries > 0){
+    int unix_sock = socket(AF_UNIX, SOCK_STREAM, 0);
+    if(unix_sock == -1){
+      perror("EWM_SOCKET");
+      return -1;
+    }
+    if(connect(unix_sock, (struct sockaddr*)&addr, sizeof(addr)) == 0){
+      printf("[DEBUG] Connected to worker %d socket\n", id);
+      return unix_sock;
+    }
     close(unix_sock);
-    perror("EWM_CONNECT_UN");
-    return -1;
+    printf("[DEBUG] Retry %d: Waiting for worker %d socket...\n", 51-retries, id);
+    usleep(100000);
+    retries--;
   }
-  return unix_sock;
+  printf("[ERROR] Failed to connect to worker %d at %s after retries\n", id, sock_path);
+  perror("EWM_CONNECT_UN");
+  return -1;
 }
 
 // this one sends the fd over to the worker's
@@ -247,16 +258,26 @@ static void* wm_worker_alloc(void* arg){
   int* fd = worker_input->fd;
   pthread_mutex_t* w_lock = worker_input->w_lock;
   int worker_unix_sock = wm_connect_unix(worker->id);
-  int err =wm_send_fd(worker_unix_sock, *fd);
-  if(err){
-    perror("[Major Error] WM Could not send fd to worker!");
+  if(worker_unix_sock == -1){
+    fprintf(stderr, "[Major Error] Failed to connect to worker %d\n", worker->id);
+    free(worker_input);
+    return NULL;
   }
-  // wait for "done" message from worker pipe
-  char buf[4];
+  int err = wm_send_fd(worker_unix_sock, *fd);
+  if(err < 0){
+    perror("[Major Error] WM Could not send fd to worker!");
+    close(worker_unix_sock);
+    free(worker_input);
+    return NULL;
+  }
+  close(worker_unix_sock);
+  char buf[10];
   read(worker->com_fd[0], buf, sizeof(buf));
   pthread_mutex_lock(w_lock);
   worker->state = 0;
   pthread_mutex_unlock(w_lock);
+  free(worker_input);
+  return NULL;
 }
 
 
