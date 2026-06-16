@@ -31,13 +31,13 @@ This much may be stated as obvious after use.
 
 
 ### Some notes:
-##### Functions, Libraries and the clients
+#### Functions, Libraries and the clients
 While writing libraries and clients, do make sure that the first argument is the input string to the
 function and the second argument is the file descriptor to send messages back to, 
 hence any errors propagated by the CFaaS native are also string messages only, do make
 sure to write client in a way such that they are handled.
 
-##### Function structure
+#### Function structure
 Make sure to deal with any errors and edge cases a function may encounter
 during its runtime inside the function itself as CFaaS currently does not handle
 such cases.
