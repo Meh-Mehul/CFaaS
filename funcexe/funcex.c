@@ -93,6 +93,15 @@ static int worker_recv_fd(int conn) {
     return fd;
 }
 
+
+void send_fail_notif(int fd, char* str){
+  char msg[100];
+  snprintf(msg,100,"CFaaS: Invocation Failed.\nReason : %s", str);
+  int n = send(fd, msg, sizeof(msg), 0);
+  if(n<0){
+    perror("ESEND_FAILURE");
+  }
+}
 static void worker_notify_done(int* pipe_fd){
   char job_done_msg[] = "done";
   int faas_done_n = write(pipe_fd[1], job_done_msg, sizeof(job_done_msg));
@@ -128,6 +137,7 @@ static void worker_systemd(char* sock_path, int id, int* pipe_fd){
       dlib->ID = *job_lib_id;
       if(!checkLib(dlib)){
         perror("EWORKER_LIBSEARCH");
+        send_fail_notif(job_conn_fd, "Library not found"); // actually done here
         worker_notify_done(pipe_fd);
         close(job_conn_fd);
         close(conn);
@@ -261,6 +271,7 @@ int wm_send_fd(int unix_sock, int fd){
   return result;
 }
 
+
 // sent off by the scheduler to allocate the given task to the worker
 // also handle state change and waits till that task is done
 // since this is offloaded to a separate thread, its way easier.
@@ -282,6 +293,7 @@ static void* wm_worker_alloc(void* arg){
   if(err < 0){
     perror("[Major Error] WM Could not send fd to worker!");
     close(worker_unix_sock);
+    send_fail_notif(worker_input->fd, "The developer sucks ass");
     close(worker_input->fd);
     pthread_mutex_lock(w_lock);
     worker->state = 0;
@@ -294,6 +306,9 @@ static void* wm_worker_alloc(void* arg){
   if(read(worker->com_fd[0], buf, sizeof(buf)) < 0){
     perror("WORKER_DONE_READ");
   }
+  close(worker_input->fd); // stupid ahh bug
+  // this process also held the fd, so the reciever was waiting on this even if Library was not found
+  // since this is now closed, reciever ends the connection.
   pthread_mutex_lock(w_lock);
   worker->state = 0;
   pthread_mutex_unlock(w_lock);

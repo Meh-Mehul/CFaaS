@@ -156,8 +156,9 @@ int main(){
   DEBUG("[DEBUG] CFaaS main starting...\n");
   fflush(stdout);
   pthread_t libct_thread, worker_thread;
-  pthread_create(&libct_thread, NULL, start_lib_creator_ss, NULL);
   pthread_create(&worker_thread, NULL, create_workers, NULL);
+  sleep(5);
+  pthread_create(&libct_thread, NULL, start_lib_creator_ss,NULL); 
   DEBUG("[DEBUG] Threads created, sleeping for worker setup...\n");
   fflush(stdout);
   sleep(5);

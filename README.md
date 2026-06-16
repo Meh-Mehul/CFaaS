@@ -21,3 +21,25 @@ To request a function run: write your own client ;(
 
 Sample client is given in ```clients/faas_client_sample.c``` and is also built into ```build/clients``` dir.
 Also, sample libraries are provided in ```samples/``` dir.
+
+### CFaaS : As a TCP-level Load Balancer
+This statement is kind of a stretch, but since, it distributes file descriptors over a set
+of running processes, it can be seen as a TCP-level load balancer.
+
+### CFaaS : As a severless
+This much may be stated as obvious after use.
+
+
+### Some notes:
+##### Functions, Libraries and the clients
+While writing libraries and clients, do make sure that the first argument is the input string to the
+function and the second argument is the file descriptor to send messages back to, 
+hence any errors propagated by the CFaaS native are also string messages only, do make
+sure to write client in a way such that they are handled.
+
+##### Function structure
+Make sure to deal with any errors and edge cases a function may encounter
+during its runtime inside the function itself as CFaaS currently does not handle
+such cases.
+The library function MUST be name ```fn``` and must have the type : ```int fn(int*, char*)```
+No need of the ```main``` function inside the library code
