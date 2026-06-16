@@ -43,3 +43,6 @@ during its runtime inside the function itself as CFaaS currently does not handle
 such cases.
 The library function MUST be name ```fn``` and must have the type : ```int fn(int*, char*)```
 No need of the ```main``` function inside the library code
+
+#### Yes, i did not test it thoroughly
+That would require me having any sanity left for debugging C code.
