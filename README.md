@@ -15,7 +15,7 @@ make client
 ```
 To load a function into the FaaS (```libct``` is inside clients dir):
 ```
-./libt <path to function file>
+./libct <path to function file>
 ```
 To request a function run: write your own client ;(
 
