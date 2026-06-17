@@ -32,10 +32,10 @@ This much may be stated as obvious after use.
 
 ### Some notes:
 #### Functions, Libraries and the clients
-While writing libraries and clients, do make sure that the first argument is the input string to the
-function and the second argument is the file descriptor to send messages back to, 
+While writing libraries and clients, do make sure that the interactions between the user and the function all happen in strings only, 
 hence any errors propagated by the CFaaS native are also string messages only, do make
 sure to write client in a way such that they are handled.
+For clear structure as to how the clients send strings : read ```ires/readme.txt```
 
 #### Function structure
 Make sure to deal with any errors and edge cases a function may encounter
